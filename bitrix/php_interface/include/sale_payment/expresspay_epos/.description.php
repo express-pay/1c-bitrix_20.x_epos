@@ -34,6 +34,13 @@ $arPSCorrespondence = array(
 			"VALUE"	=> "",
 			"TYPE"	=> ""
 		),
+		"EPOS_SERVICE_CODE"	=> array(
+			"SORT" => 30,
+			"NAME"	=> "Код в EPOS",
+			"DESCR"	=> "Код в EPOS можно узнать в личном кабинете сервиса \"Экспресс Платежи\" в настройках услуги.",
+			"VALUE"	=> "",
+			"TYPE"	=> ""
+		),
 		"EPOS_SECRET_WORD"	=> array(
 			"SORT" => 40,
 			"NAME"	=> "Секретное слово для цифровой подписи",

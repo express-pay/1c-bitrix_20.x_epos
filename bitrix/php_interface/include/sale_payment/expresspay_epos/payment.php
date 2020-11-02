@@ -145,14 +145,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET')
 			'<table style="width: 100%;text-align: left;">
             <tbody>
                     <tr>
-                        <td valign="top" style="text-align:left;">
+						<td valign="top" style="text-align:left;">
+						<h3>Ваш номер заказа: ##ORDER_ID##</h3>
                             Вам необходимо произвести платеж в любой системе, позволяющей проводить оплату через ЕРИП (пункты банковского обслуживания, банкоматы, платежные терминалы, системы интернет-банкинга, клиент-банкинга и т.п.).
                             <br />
                             <br /> 1. Для этого в перечне услуг ЕРИП перейдите в раздел: <br />
 							<b>Сервис E-POS-&gt;E-POS - оплата товаров и услуг</b><br />
-							<br /> либо В поле "Код" введите <b>4440631</b> и нажмите "Продолжить"<br />
-                            <br /> 2. В поле \'<b>##PERSONAL_ACCOUNT_NAME##</b>\' введите \'<b>##ORDER_ID##</b>\' и нажмите \'Продолжить\'. <br />
-                            <br /> 3. Укажите сумму для оплаты <b>##SUM##</b>
+                            <br />2. В поле "Код" введите <b>##ORDER_ID##</b> и нажмите "Продолжить" <br />
+                            <br />3. Проверить корректность информации<br />
+                            <br />4. Совершить платеж.<br />
                         </td>
                             <td style="text-align: center;padding: 0px 20px 0 0;vertical-align: middle">
 								##OR_CODE##
@@ -163,8 +164,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET')
 						</tr>
 				</tbody>
 			</table>';
-															
-			$invoice_description = str_replace("##ORDER_ID##", $inv_id, $invoice_template);
+						
+			$epos_code  = CSalePaySystemAction::GetParamValue("EPOS_SERVICE_CODE") ."-";
+			$epos_code  .= "1-";
+			$epos_code .= $inv_id;
+
+			$invoice_description = str_replace("##ORDER_ID##", $epos_code, $invoice_template);
 			$invoice_description = str_replace("##SUM##", $out_summ, $invoice_description);
 			$invoice_description = str_replace("##PERSONAL_ACCOUNT_NAME##", $paname, $invoice_description);
 			$invoice_description = str_replace("##OR_CODE##", '<img src="data:image/jpeg;base64,' . $qr_code . '"  width="200" height="200"/>', $invoice_description);
