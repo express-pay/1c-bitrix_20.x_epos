@@ -82,15 +82,6 @@ $arPSCorrespondence = array(
 				"PROVIDER_KEY" => "VALUE"
 			)
 		),
-		/*"ERIP_PATH"	=> array(
-			"SORT" => 70,
-			"NAME"	=> "Путь ветки ЕРИП услуги",
-			"DESCR"	=> "Задается при подключении. Указано в личном кабинете",
-			"DEFAULT"	=> array(
-				"PROVIDER_VALUE" => "Интернет-магазины/сервисы->[Первая буква сайта]->[Имя сайта]",
-				"PROVIDER_KEY" => "VALUE"
-				),
-		),*/
 		"EPOS_PERSONAL_ACCOUNT_NAME"	=> array(
 			"SORT" => 80,
 			"NAME"	=> "Наименование лицевого счета",

@@ -124,8 +124,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET')
 			$paname = CSalePaySystemAction::GetParamValue("EPOS_PERSONAL_ACCOUNT_NAME");
 
 			
-				$token = CSalePaySystemAction::GetParamValue("ERIP_TOKEN");
-				$secret_word = CSalePaySystemAction::GetParamValue("ERIP_SECRET_WORD");
+				$token = CSalePaySystemAction::GetParamValue("EPOS_TOKEN");
+				$secret_word = CSalePaySystemAction::GetParamValue("EPOS_SECRET_WORD");
     			
     			$request_params_for_qr = array(
 					 "Token" => $token,
@@ -167,7 +167,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET')
 			$invoice_description = str_replace("##ORDER_ID##", $inv_id, $invoice_template);
 			$invoice_description = str_replace("##SUM##", $out_summ, $invoice_description);
 			$invoice_description = str_replace("##PERSONAL_ACCOUNT_NAME##", $paname, $invoice_description);
-			//$invoice_description = str_replace("##ERIP_PATH##", $erip_path, $invoice_description);
 			$invoice_description = str_replace("##OR_CODE##", '<img src="data:image/jpeg;base64,' . $qr_code . '"  width="200" height="200"/>', $invoice_description);
 			$invoice_description = str_replace("##OR_CODE_DESCRIPTION##", $qr_description, $invoice_description);
 				
