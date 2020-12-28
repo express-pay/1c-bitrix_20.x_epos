@@ -3,117 +3,18 @@ define("NO_KEEP_STATISTIC", true);
 define("NOT_CHECK_PERMISSIONS", true);
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
 CModule::IncludeModule("sale");
+use Bitrix\Main\Localization\Loc;
+Loc::loadMessages(__FILE__);
 
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true) die();
 
-// Отправка POST запроса
-if (!function_exists('ExpressPay_SendRequestPOST'))
-{
-	function ExpressPay_SendRequestPOST($url, $params)
-	{	
-		$ch = curl_init();
-		curl_setopt($ch, CURLOPT_URL, $url);
-		curl_setopt($ch, CURLOPT_POST, 1);
-		curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($params));
-		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-		$response = curl_exec($ch);
-		$httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-		curl_close($ch);
-	
-		return $httpcode;
-	}
-}
-if (!function_exists('ExpressPay_SendRequestGET'))
-{
-function ExpressPay_SendRequestGET($url){
-	$ch = curl_init();
-	curl_setopt($ch, CURLOPT_URL, $url);
-	curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-	curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-	$response = curl_exec($ch);
-	curl_close($ch);
-	return $response;	
-}
-}
-
-if (!function_exists('ExpressPay_AddInvoice'))
-{
-	// Формирование цифровой подписи
-	function computeSignature($requestParams, $secretWord, $method)
-	{
-		$normalizedParams = array_change_key_case($requestParams, CASE_LOWER);
-		$mapping = array(
-			"add-invoice" => array(
-									"token",
-									"accountno",
-									"amount",
-									"currency",
-									"expiration",
-									"info",
-									"surname",
-									"firstname",
-									"patronymic",
-									"city",
-									"street",
-									"house",
-									"building",
-									"apartment",
-									"isnameeditable",
-									"isaddresseditable",
-									"isamounteditable")
-		);
-		$apiMethod = $mapping[$method];
-		$result = "";
-		
-		foreach ($apiMethod as $item)
-		{
-			$result .= $normalizedParams[$item];
-		}
-		$hash = strtoupper(hash_hmac('sha1', $result, $secretWord));
-		
-		return $hash;
-	}
-	
-	//Выставление счета
-	function ExpressPay_AddInvoice($token, $numberAccount, $amount, $currency, $expiration = "", $info = "", 
-		$surname = "", $firstName = "", $patronymic = "", $city = "", $street = "", $house="", $building = "", 
-		$apartment = "", $isNameEditable = "", $isAddressEditable = "", $isAmountEditable = "", $emailNotification = "")
-	{	
-		$isTest = CSalePaySystemAction::GetParamValue("EPOS_IS_TEST_API");
-		$baseUrl = "https://api.express-pay.by/v1/";
-		
-		if($isTest == 'Y')
-			$baseUrl = "https://sandbox-api.express-pay.by/v1/";
-		
-		$url = $baseUrl . "invoices?token=" . $token;
-		
-		$requestParams = array(
-				"AccountNo" => $numberAccount,
-				"Amount" => $amount,
-				"Currency" => $currency,
-				"Expiration" => $expiration,
-				"Info" => $info,
-				"Surname" => $surname,
-				"FirstName" => $firstName,
-				"Patronymic" => $patronymic,
-				"City" => $city,
-				"Street" => $street,
-				"House" => $house,
-				"Building" => $building,
-				"Apartment" => $apartment,
-				"IsNameEditable" => $isNameEditable,
-				"IsAddressEditable" => $isAddressEditable,
-				"IsAmountEditable" => $isAmountEditable,
-				"EmailNotification" => $emailNotification
-		);
-		return ExpressPay_SendRequestPOST($url, $requestParams);  
-	}
-}
-
 log_info('payment','Begin payment process');
 
+$uri = $_SERVER['REQUEST_URI'];
+$uri = explode("/", $uri);
+$isSet = array_search('make', $uri);
 
-if ($_SERVER['REQUEST_METHOD'] === 'GET')
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && $isSet != false)
 {
 	if(isset($_REQUEST['result']))
 	{
@@ -121,11 +22,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET')
 		{
 			$inv_id = $_REQUEST['ExpressPayAccountNumber'];
 			$out_summ = $_REQUEST['ExpressPayAmount'];
-			$paname = CSalePaySystemAction::GetParamValue("EPOS_PERSONAL_ACCOUNT_NAME");
 
 			
 				$token = CSalePaySystemAction::GetParamValue("EPOS_TOKEN");
 				$secret_word = CSalePaySystemAction::GetParamValue("EPOS_SECRET_WORD");
+				$isTest = CSalePaySystemAction::GetParamValue("EPOS_IS_TEST_API");
+
+				$url;
+
+				if ($isTest == "Y")
+				{
+					$url = 'https://sandbox-api.express-pay.by/v1/qrcode/getqrcode/?';
+				}
+				else
+				{
+					$url = 'https://api.express-pay.by/v1/qrcode/getqrcode/?';
+				}
     			
     			$request_params_for_qr = array(
 					 "Token" => $token,
@@ -136,34 +48,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET')
 				$request_params_for_qr["Signature"] = compute_signature($request_params_for_qr, $token, $secret_word, 'get_qr_code');
 				 
 				$request_params_for_qr  = http_build_query($request_params_for_qr);
-				$response_qr = ExpressPay_SendRequestGET('https://api.express-pay.by/v1/qrcode/getqrcode/?'.$request_params_for_qr );
+				$response_qr = file_get_contents($url.$request_params_for_qr);
 				$response_qr = json_decode($response_qr);
 				$qr_code = $response_qr->QrCodeBody;
-				$qr_description = 'Отсканируйте QR-код для оплаты';
+				$qr_description = Loc::getMessage("EPOS_QR_DESCRIPTION");
 
-			$invoice_template = 
-			'<table style="width: 100%;text-align: left;">
-            <tbody>
-                    <tr>
-						<td valign="top" style="text-align:left;">
-						<h3>Ваш номер заказа: ##ORDER_ID##</h3>
-                            Вам необходимо произвести платеж в любой системе, позволяющей проводить оплату через ЕРИП (пункты банковского обслуживания, банкоматы, платежные терминалы, системы интернет-банкинга, клиент-банкинга и т.п.).
-                            <br />
-                            <br /> 1. Для этого в перечне услуг ЕРИП перейдите в раздел: <br />
-							<b>Сервис E-POS-&gt;E-POS - оплата товаров и услуг</b><br />
-                            <br />2. В поле "Код" введите <b>##ORDER_ID##</b> и нажмите "Продолжить" <br />
-                            <br />3. Проверить корректность информации<br />
-                            <br />4. Совершить платеж.<br />
-                        </td>
-                            <td style="text-align: center;padding: 0px 20px 0 0;vertical-align: middle">
-								##OR_CODE##
-								<p><b>##OR_CODE_DESCRIPTION##</b></p>
-								</br>
-								</br>
-								</td>
-						</tr>
-				</tbody>
-			</table>';
+			$invoice_template = Loc::getMessage("EPOS_INVOICE_TEMPLATE");
 						
 			$epos_code  = CSalePaySystemAction::GetParamValue("EPOS_SERVICE_CODE") ."-";
 			$epos_code  .= "1-";
@@ -171,7 +61,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET')
 
 			$invoice_description = str_replace("##ORDER_ID##", $epos_code, $invoice_template);
 			$invoice_description = str_replace("##SUM##", $out_summ, $invoice_description);
-			$invoice_description = str_replace("##PERSONAL_ACCOUNT_NAME##", $paname, $invoice_description);
 			$invoice_description = str_replace("##OR_CODE##", '<img src="data:image/jpeg;base64,' . $qr_code . '"  width="200" height="200"/>', $invoice_description);
 			$invoice_description = str_replace("##OR_CODE_DESCRIPTION##", $qr_description, $invoice_description);
 				
@@ -182,7 +71,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET')
 	}
 		else
 		{
-			echo 'При попытке выставить счет произошла ошибка.';
+			echo Loc::getMessage("EPOS_INVOICE_ERROR");
 		}
 	}
 	else
@@ -218,16 +107,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET')
 
 function getInvoiceParam()
 {
-	$order_id = $GLOBALS["SALE_INPUT_PARAMS"]["ORDER"]["ID"];//Номер заказа
+	$order_id = $GLOBALS["SALE_INPUT_PARAMS"]["ORDER"]["ID"];
 	$order_id = IntVal($order_id);
 	$shouldPay = (strlen(CSalePaySystemAction::GetParamValue("SHOULD_PAY", '')) > 0) ? CSalePaySystemAction::GetParamValue("SHOULD_PAY", 0) : $GLOBALS["SALE_INPUT_PARAMS"]["ORDER"]["SHOULD_PAY"];
-	$out_summ = number_format(floatval($shouldPay), 2, ',', '');//Формирование суммы с 2 числами после ","
+	$out_summ = number_format(floatval($shouldPay), 2, ',', '');
 
 	$token = CSalePaySystemAction::GetParamValue("EPOS_TOKEN");
 	$secret_word = CSalePaySystemAction::GetParamValue("EPOS_SECRET_WORD");
 	$serviceId = CSalePaySystemAction::GetParamValue("EPOS_SERVICE_ID");
-	$info_template = CSalePaySystemAction::GetParamValue("EPOS_INFO_TEMPLATE");
-	$info = str_replace("##ORDER_ID##", $order_id, $info_template);
 	$name_edit = CSalePaySystemAction::GetParamValue("EPOS_IS_NAME_EDITABLE");
 	$name_edit = CSalePaySystemAction::GetParamValue("EPOS_IS_ADDRESS_EDITABLE");
 	$amount_edit = CSalePaySystemAction::GetParamValue("EPOS_IS_AMOUNT_EDITABLE");
@@ -357,4 +244,3 @@ function validSignature($signature)
 
 	return $validSignature == $signature;
 }
-?>
